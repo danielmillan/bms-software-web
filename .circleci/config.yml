@@ -1,0 +1,99 @@
+version: 2.1
+
+references:
+  workdir: &workdir ~/bms-software-web
+  cache_key: &cache_key v1-dependencies-{{ checksum "package.json" }}-{{ .Branch }}-dev-v0.3
+  cache-path: &cache_path node_modules
+
+executors:
+  nodejs-12:
+    docker:
+      - image: circleci/node:12-browsers-legacy
+
+aliases:
+  - &restore_cache
+    restore_cache:
+      key: *cache_key
+  - &save_cache
+    save_cache:
+      paths:
+        - *cache_path
+      key: *cache_key
+
+jobs:
+  build:
+    executor: nodejs-12
+    working_directory: ~/bms-software-web
+    steps:
+      - checkout:
+          path: *workdir
+      - *restore_cache
+      - run:
+          name: install dependencies
+          command: npm install
+      - *save_cache
+  test:
+    executor: nodejs-12
+    working_directory: ~/bms-software-web
+    steps:
+      - checkout:
+          path: *workdir
+      - *restore_cache
+      - run:
+          name: lint validation
+          command: npm run lint
+  prepare-site:
+    executor: nodejs-12
+    working_directory: ~/bms-software-web
+    steps:
+      - checkout
+      - attach_workspace:
+          at: *workdir
+      - *restore_cache
+      - run:
+          name: Deployment app
+          command: npm run build:production
+      - run:
+          name: List directory
+          command: ls -l
+      - persist_to_workspace:
+          root: *workdir
+          paths:
+            - dist
+  deploy:
+    executor: nodejs-12
+    working_directory: ~/bms-software-web
+    steps:
+      - checkout
+      - attach_workspace:
+          at: *workdir
+      - *restore_cache
+      - run:
+          name: create target
+          command: ./node_modules/.bin/firebase target:apply hosting bms-software-web bms-software-web
+      - run:
+          name: deploy firebase hosting
+          command: ./node_modules/.bin/firebase deploy --token="$FIREBASE_TOKEN" --only hosting:bms-software-web
+
+workflows:
+  version: 2
+  bms-software-web:
+    jobs:
+      - build
+      - test:
+          requires:
+            - build
+      - prepare-site:
+          requires:
+            - test
+          filters:
+            branches:
+              only:
+                - master
+      - deploy:
+          requires:
+            - prepare-site
+          filters:
+            branches:
+              only:
+                - master
