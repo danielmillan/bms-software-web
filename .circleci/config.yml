@@ -70,10 +70,10 @@ jobs:
       - *restore_cache
       - run:
           name: create target
-          command: ./node_modules/.bin/firebase target:apply hosting bms-software-web bms-software-web
+          command: ./node_modules/.bin/firebase target:apply hosting bms-software bms-software
       - run:
           name: deploy firebase hosting
-          command: ./node_modules/.bin/firebase deploy --token="$FIREBASE_TOKEN" --only hosting:bms-software-web
+          command: ./node_modules/.bin/firebase deploy --token="$FIREBASE_TOKEN" --only hosting:bms-software
 
 workflows:
   version: 2
